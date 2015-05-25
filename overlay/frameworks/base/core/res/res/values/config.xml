@@ -320,4 +320,7 @@
     -->
     <bool name="config_enableWifiDisplay">true</bool>
 
+    <!-- Boolean to show HW keys enable/disbale option -->
+    <bool name="config_hwKeysPref">true</bool>
+
 </resources>
