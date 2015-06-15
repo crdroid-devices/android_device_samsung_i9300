@@ -44,7 +44,7 @@ void input_event_set(struct input_event *event, int type, int code, int value)
 	gettimeofday(&event->time, NULL);
 }
 
-long int timestamp(struct timeval *time)
+int64_t timestamp(struct timeval *time)
 {
 	if (time == NULL)
 		return -1;
@@ -52,7 +52,7 @@ long int timestamp(struct timeval *time)
 	return time->tv_sec * 1000000000LL + time->tv_usec * 1000;
 }
 
-long int input_timestamp(struct input_event *event)
+int64_t input_timestamp(struct input_event *event)
 {
 	if (event == NULL)
 		return -1;
@@ -88,6 +88,7 @@ int uinput_rel_create(const char *name)
 	rc |= ioctl(uinput_fd, UI_SET_RELBIT, REL_X);
 	rc |= ioctl(uinput_fd, UI_SET_RELBIT, REL_Y);
 	rc |= ioctl(uinput_fd, UI_SET_RELBIT, REL_Z);
+	rc |= ioctl(uinput_fd, UI_SET_RELBIT, REL_MISC);
 	rc |= ioctl(uinput_fd, UI_SET_EVBIT, EV_SYN);
 
 	if (rc < 0) {

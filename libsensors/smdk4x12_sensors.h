@@ -18,6 +18,8 @@
 #include <stdint.h>
 #include <poll.h>
 #include <linux/input.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 
 #include <hardware/sensors.h>
 #include <hardware/hardware.h>
@@ -26,7 +28,6 @@
 #define _SMDK4x12_SENSORS_H_
 
 #define SMDK4x12_SENSORS_NEEDED_API		(1 << 0)
-#define SMDK4x12_SENSORS_NEEDED_ORIENTATION	(1 << 1)
 
 struct smdk4x12_sensors_device;
 
@@ -40,7 +41,7 @@ struct smdk4x12_sensors_handlers {
 	int (*activate)(struct smdk4x12_sensors_handlers *handlers);
 	int (*deactivate)(struct smdk4x12_sensors_handlers *handlers);
 	int (*set_delay)(struct smdk4x12_sensors_handlers *handlers,
-		long int delay);
+		int64_t delay);
 	int (*get_data)(struct smdk4x12_sensors_handlers *handlers,
 		struct sensors_event_t *event);
 
@@ -76,8 +77,8 @@ int smdk4x12_sensors_poll(struct sensors_poll_device_t *dev,
  */
 
 void input_event_set(struct input_event *event, int type, int code, int value);
-long int timestamp(struct timeval *time);
-long int input_timestamp(struct input_event *event);
+int64_t timestamp(struct timeval *time);
+int64_t input_timestamp(struct input_event *event);
 int uinput_rel_create(const char *name);
 void uinput_destroy(int uinput_fd);
 int input_open(char *name);
@@ -91,12 +92,8 @@ int sysfs_string_write(char *path, char *buffer, size_t length);
  * Sensors
  */
 
-int orientation_fill(struct smdk4x12_sensors_handlers *handlers,
-	sensors_vec_t *acceleration, sensors_vec_t *magnetic);
-
 extern struct smdk4x12_sensors_handlers lsm330dlc_acceleration;
 extern struct smdk4x12_sensors_handlers akm8975;
-extern struct smdk4x12_sensors_handlers orientation;
 extern struct smdk4x12_sensors_handlers cm36651_proximity;
 extern struct smdk4x12_sensors_handlers cm36651_light;
 extern struct smdk4x12_sensors_handlers lsm330dlc_gyroscope;

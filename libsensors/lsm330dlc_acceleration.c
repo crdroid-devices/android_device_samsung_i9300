@@ -31,9 +31,7 @@
 #include "lsm330dlc_accel.h"
 
 struct lsm330dlc_acceleration_data {
-	struct smdk4x12_sensors_handlers *orientation_sensor;
-
-	long int delay;
+	int64_t delay;
 	int device_fd;
 	int uinput_fd;
 
@@ -49,7 +47,7 @@ void *lsm330dlc_acceleration_thread(void *thread_data)
 	struct input_event event;
 	struct timeval time;
 	struct lsm330dlc_acc acceleration_data;
-	long int before, after;
+	int64_t before, after;
 	int diff;
 	int device_fd;
 	int uinput_fd;
@@ -129,14 +127,6 @@ int lsm330dlc_acceleration_init(struct smdk4x12_sensors_handlers *handlers,
 		return -EINVAL;
 
 	data = (struct lsm330dlc_acceleration_data *) calloc(1, sizeof(struct lsm330dlc_acceleration_data));
-
-	for (i = 0; i < device->handlers_count; i++) {
-		if (device->handlers[i] == NULL)
-			continue;
-
-		if (device->handlers[i]->handle == SENSOR_TYPE_ORIENTATION)
-			data->orientation_sensor = device->handlers[i];
-	}
 
 	device_fd = open("/dev/accelerometer", O_RDONLY);
 	if (device_fd < 0) {
@@ -295,14 +285,14 @@ int lsm330dlc_acceleration_deactivate(struct smdk4x12_sensors_handlers *handlers
 	return 0;
 }
 
-int lsm330dlc_acceleration_set_delay(struct smdk4x12_sensors_handlers *handlers, long int delay)
+int lsm330dlc_acceleration_set_delay(struct smdk4x12_sensors_handlers *handlers, int64_t delay)
 {
 	struct lsm330dlc_acceleration_data *data;
 	int64_t d;
 	int device_fd;
 	int rc;
 
-	ALOGD("%s(%p, %ld)", __func__, handlers, delay);
+	ALOGD("%s(%p, %" PRId64 ")", __func__, handlers, delay);
 
 	if (handlers == NULL || handlers->data == NULL)
 		return -EINVAL;
@@ -354,7 +344,7 @@ int lsm330dlc_acceleration_get_data(struct smdk4x12_sensors_handlers *handlers,
 	event->sensor = handlers->handle;
 	event->type = handlers->handle;
 
-	event->magnetic.status = SENSOR_STATUS_ACCURACY_MEDIUM;
+	event->acceleration.status = SENSOR_STATUS_ACCURACY_MEDIUM;
 
 	do {
 		rc = read(input_fd, &input_event, sizeof(input_event));
@@ -380,9 +370,6 @@ int lsm330dlc_acceleration_get_data(struct smdk4x12_sensors_handlers *handlers,
 				event->timestamp = input_timestamp(&input_event);
 		}
 	} while (input_event.type != EV_SYN);
-
-	if (data->orientation_sensor != NULL)
-		orientation_fill(data->orientation_sensor, &event->acceleration, NULL);
 
 	return 0;
 }

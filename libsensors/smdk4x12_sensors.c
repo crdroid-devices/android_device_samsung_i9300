@@ -35,20 +35,24 @@
  */
 
 struct sensor_t smdk4x12_sensors[] = {
-	{ "LSM330DLC Acceleration Sensor", "STMicroelectronics", 1, SENSOR_TYPE_ACCELEROMETER,
-		SENSOR_TYPE_ACCELEROMETER, 2 * GRAVITY_EARTH, 0.0096f, 0.23f, 10000, 0, 0, SENSOR_STRING_TYPE_ACCELEROMETER, "", 0, SENSOR_FLAG_ON_CHANGE_MODE, {}, },
-	{ "AKM8975 Magnetic Sensor", "Asahi Kasei Microdevices", 1, SENSOR_TYPE_MAGNETIC_FIELD,
-		SENSOR_TYPE_MAGNETIC_FIELD, 2000.0f, 1.0f / 16, 6.8f, 10000, 0, 0, SENSOR_STRING_TYPE_MAGNETIC_FIELD, "", 0, SENSOR_FLAG_ON_CHANGE_MODE, {}, },
-	{ "Orientation Sensor", "SMDK4x12 Sensors", 1, SENSOR_TYPE_ORIENTATION,
-		SENSOR_TYPE_ORIENTATION, 360.0f, 0.1f, 0.0f, 10000, 0, 0, SENSOR_STRING_TYPE_ORIENTATION, "", 0, SENSOR_FLAG_ON_CHANGE_MODE, {}, },
-	{ "CM36651 Light Sensor", "Capella Microsystems", 1, SENSOR_TYPE_LIGHT,
-		SENSOR_TYPE_LIGHT, 121240.0f, 1.0f, 0.2f, 0, 0, 0, SENSOR_STRING_TYPE_LIGHT, "", 0, SENSOR_FLAG_ON_CHANGE_MODE, {}, },
-	{ "CM36651 Proximity Sensor", "Capella Microsystems", 1, SENSOR_TYPE_PROXIMITY,
-		SENSOR_TYPE_PROXIMITY, 6.0f, 6.0f, 1.3f, 0, 0, 0, SENSOR_STRING_TYPE_PROXIMITY, "", 0, SENSOR_FLAG_WAKE_UP | SENSOR_FLAG_ON_CHANGE_MODE, {}, },
-	{ "LSM330DLC Gyroscope Sensor", "STMicroelectronics", 1, SENSOR_TYPE_GYROSCOPE,
-		SENSOR_TYPE_GYROSCOPE, 500.0f * (3.1415926535f / 180.0f), (70.0f / 4000.0f) * (3.1415926535f / 180.0f), 6.1f, 5000, 0, 0, SENSOR_STRING_TYPE_GYROSCOPE, "", 0, SENSOR_FLAG_ON_CHANGE_MODE, {}, },
-	{ "LPS331AP Pressure Sensor", "STMicroelectronics", 1, SENSOR_TYPE_PRESSURE,
-		SENSOR_TYPE_PRESSURE, 1260.0f, 1.0f / 4096, 0.045f, 40000, 0, 0, SENSOR_STRING_TYPE_PRESSURE, "", 0, SENSOR_FLAG_CONTINUOUS_MODE, {}, },
+       { "LSM330DLC 3-Axis Accelerometer", "STMicroelectronics", 1, SENSOR_TYPE_ACCELEROMETER,
+               SENSOR_TYPE_ACCELEROMETER, 2 * GRAVITY_EARTH, 0.0096f, 0.23f, 10000, 0, 0, SENSOR_STRING_TYPE_ACCELEROMETER, 0, 0,
+               SENSOR_FLAG_CONTINUOUS_MODE, {}, },
+       { "AKM8975C 3-Axis Magnetic Sensor", "Asahi Kasei", 1, SENSOR_TYPE_MAGNETIC_FIELD,
+               SENSOR_TYPE_MAGNETIC_FIELD, 2000.0f, 1.0f / 16, 6.8f, 10000, 0, 0, SENSOR_STRING_TYPE_MAGNETIC_FIELD, 0, 0,
+               SENSOR_FLAG_CONTINUOUS_MODE, {}, },
+       { "CM36651 Light Sensor", "Capella", 1, SENSOR_TYPE_LIGHT,
+               SENSOR_TYPE_LIGHT, 121240.0f, 1.0f, 0.2f, 0, 0, 0, SENSOR_STRING_TYPE_LIGHT, 0, 0,
+               SENSOR_FLAG_ON_CHANGE_MODE, {}, },
+       { "CM36651 Proximity Sensor", "Capella", 1, SENSOR_TYPE_PROXIMITY,
+               SENSOR_TYPE_PROXIMITY, 8.0f, 8.0f, 1.3f, 0, 0, 0, SENSOR_STRING_TYPE_PROXIMITY, 0, 0,
+               SENSOR_FLAG_WAKE_UP | SENSOR_FLAG_ON_CHANGE_MODE, {}, },
+       { "LSM330DLC Gyroscope Sensor", "STMicroelectronics", 1, SENSOR_TYPE_GYROSCOPE,
+               SENSOR_TYPE_GYROSCOPE, 500.0f * (3.1415926535f / 180.0f), (70.0f / 4000.0f) * (3.1415926535f / 180.0f), 6.1f, 5000, 0, 0, SENSOR_STRING_TYPE_GYROSCOPE, 0, 0,
+               SENSOR_FLAG_CONTINUOUS_MODE, {}, },
+       { "LPS331AP Pressure Sensor", "STMicroelectronics", 1, SENSOR_TYPE_PRESSURE,
+               SENSOR_TYPE_PRESSURE, 1260.0f, 1.0f / 4096, 0.045f, 40000, 0, 0, SENSOR_STRING_TYPE_PRESSURE, 0, 20000,
+               SENSOR_FLAG_CONTINUOUS_MODE, {}, },
 };
 
 int smdk4x12_sensors_count = sizeof(smdk4x12_sensors) / sizeof(struct sensor_t);
@@ -56,7 +60,6 @@ int smdk4x12_sensors_count = sizeof(smdk4x12_sensors) / sizeof(struct sensor_t);
 struct smdk4x12_sensors_handlers *smdk4x12_sensors_handlers[] = {
 	&lsm330dlc_acceleration,
 	&akm8975,
-	&orientation,
 	&cm36651_proximity,
 	&cm36651_light,
 	&lsm330dlc_gyroscope,
@@ -116,7 +119,7 @@ int smdk4x12_sensors_set_delay(struct sensors_poll_device_t *dev, int handle,
 	struct smdk4x12_sensors_device *device;
 	int i;
 
-	ALOGD("%s(%p, %d, %ld)", __func__, dev, handle, (long int) ns);
+	ALOGD("%s(%p, %d, %" PRId64 ")", __func__, dev, handle, ns);
 
 	if (dev == NULL)
 		return -EINVAL;
@@ -131,7 +134,7 @@ int smdk4x12_sensors_set_delay(struct sensors_poll_device_t *dev, int handle,
 			continue;
 
 		if (device->handlers[i]->handle == handle && device->handlers[i]->set_delay != NULL)
-			return device->handlers[i]->set_delay(device->handlers[i], (long int) ns);
+			return device->handlers[i]->set_delay(device->handlers[i], ns);
 	}
 
 	return 0;

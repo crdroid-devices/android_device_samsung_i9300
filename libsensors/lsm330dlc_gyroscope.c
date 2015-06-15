@@ -152,19 +152,19 @@ int lsm330dlc_gyroscope_deactivate(struct smdk4x12_sensors_handlers *handlers)
 	return 0;
 }
 
-int lsm330dlc_gyroscope_set_delay(struct smdk4x12_sensors_handlers *handlers, long int delay)
+int lsm330dlc_gyroscope_set_delay(struct smdk4x12_sensors_handlers *handlers, int64_t delay)
 {
 	struct lsm330dlc_gyroscope_data *data;
 	int rc;
 
-	ALOGD("%s(%p, %ld)", __func__, handlers, delay);
+	ALOGD("%s(%p, %" PRId64 ")", __func__, handlers, delay);
 
 	if (handlers == NULL || handlers->data == NULL)
 		return -EINVAL;
 
 	data = (struct lsm330dlc_gyroscope_data *) handlers->data;
 
-	rc = sysfs_value_write(data->path_delay, (int) delay);
+	rc = sysfs_value_write(data->path_delay, delay);
 	if (rc < 0) {
 		ALOGE("%s: Unable to write sysfs value", __func__);
 		return -1;
@@ -205,6 +205,8 @@ int lsm330dlc_gyroscope_get_data(struct smdk4x12_sensors_handlers *handlers,
 	event->gyro.x = data->gyro.x;
 	event->gyro.y = data->gyro.y;
 	event->gyro.z = data->gyro.z;
+
+	event->gyro.status = SENSOR_STATUS_ACCURACY_MEDIUM;
 
 	do {
 		rc = read(input_fd, &input_event, sizeof(input_event));

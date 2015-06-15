@@ -39,12 +39,10 @@
 #define AKFS_PAT		PAT3
 
 struct akm8975_data {
-	struct smdk4x12_sensors_handlers *orientation_sensor;
-
 	AK8975PRMS akfs_params;
 	sensors_vec_t magnetic;
 
-	long int delay;
+	int64_t delay;
 	int device_fd;
 	int uinput_fd;
 
@@ -56,7 +54,8 @@ struct akm8975_data {
 int akfs_get_magnetic_field(struct akm8975_data *akm8975_data, short *magnetic_data)
 {
 	AK8975PRMS *params;
-	int rc;
+	int rc, aocret;
+	float radius;
 
 	if (akm8975_data == NULL || magnetic_data == NULL)
 		return -EINVAL;
@@ -80,7 +79,7 @@ int akfs_get_magnetic_field(struct akm8975_data *akm8975_data, short *magnetic_d
 
 	// AOC for magnetometer
 	// Offset estimation is done in this function
-	AKFS_AOC(&params->m_aocv, params->mfv_hdata, &params->mfv_ho);
+	aocret = AKFS_AOC(&params->m_aocv, params->mfv_hdata, &params->mfv_ho);
 
 	// Subtract offset
 	// Then, a magnetic vector, the unit is uT, is stored in mfv_hvbuf.
@@ -99,9 +98,25 @@ int akfs_get_magnetic_field(struct akm8975_data *akm8975_data, short *magnetic_d
 		return -1;
 	}
 
+	// Check the size of magnetic vector
+	radius = sqrtf(
+			(params->mfv_hvec.u.x * params->mfv_hvec.u.x) +
+			(params->mfv_hvec.u.y * params->mfv_hvec.u.y) +
+			(params->mfv_hvec.u.z * params->mfv_hvec.u.z));
+
+	// Sanity check result and set accuracy
+	if ((radius > MAGNETIC_FIELD_EARTH_MAX + 10) || (radius < MAGNETIC_FIELD_EARTH_MIN - 10)) {
+		params->mi_hstatus = SENSOR_STATUS_UNRELIABLE;
+	} else if(params->mi_hstatus == SENSOR_STATUS_UNRELIABLE) {
+		params->mi_hstatus = SENSOR_STATUS_ACCURACY_MEDIUM;
+	} else if (aocret == AKFS_SUCCESS) {
+		params->mi_hstatus = SENSOR_STATUS_ACCURACY_HIGH;
+	}
+
 	akm8975_data->magnetic.x = params->mfv_hvec.u.x;
 	akm8975_data->magnetic.y = params->mfv_hvec.u.y;
 	akm8975_data->magnetic.z = params->mfv_hvec.u.z;
+	akm8975_data->magnetic.status = params->mi_hstatus;
 
 	return 0;
 }
@@ -151,7 +166,7 @@ void *akm8975_thread(void *thread_data)
 	char i2c_data[SENSOR_DATA_SIZE] = { 0 };
 	short magnetic_data[3];
 	short mode;
-	long int before, after;
+	int64_t before, after;
 	int diff;
 	int device_fd;
 	int uinput_fd;
@@ -223,6 +238,8 @@ void *akm8975_thread(void *thread_data)
 			write(uinput_fd, &event, sizeof(event));
 			input_event_set(&event, EV_REL, REL_Z, (int) (data->magnetic.z * 1000));
 			write(uinput_fd, &event, sizeof(event));
+			input_event_set(&event, EV_REL, REL_MISC, (int) data->magnetic.status);
+			write(uinput_fd, &event, sizeof(event));
 			input_event_set(&event, EV_SYN, 0, 0);
 			write(uinput_fd, &event, sizeof(event));
 
@@ -258,14 +275,6 @@ int akm8975_init(struct smdk4x12_sensors_handlers *handlers,
 		return -EINVAL;
 
 	data = (struct akm8975_data *) calloc(1, sizeof(struct akm8975_data));
-
-	for (i = 0; i < device->handlers_count; i++) {
-		if (device->handlers[i] == NULL)
-			continue;
-
-		if (device->handlers[i]->handle == SENSOR_TYPE_ORIENTATION)
-			data->orientation_sensor = device->handlers[i];
-	}
 
 	device_fd = open("/dev/akm8975", O_RDONLY);
 	if (device_fd < 0) {
@@ -308,7 +317,7 @@ int akm8975_init(struct smdk4x12_sensors_handlers *handlers,
 	i2c_data[1] = AK8975_REG_WIA;
 	rc = ioctl(device_fd, ECS_IOCTL_READ, &i2c_data);
 	if (rc < 0) {
-		ALOGE("%s: Unable to read akm8975 FUSE data", __func__);
+		ALOGE("%s: Unable to read akm8975 WIA data", __func__);
 		goto error;
 	}
 
@@ -434,8 +443,15 @@ int akm8975_activate(struct smdk4x12_sensors_handlers *handlers)
 
 	// Read settings from a file
 	rc = AKFS_LoadParameters(akfs_params, AKFS_CONFIG_PATH);
-	if (rc != AKM_SUCCESS)
-		ALOGE("%s: Unable to read AKFS parameters", __func__);
+	if (rc != AKM_SUCCESS) {
+		ALOGE("%s: Unable to read AKFS HO parameters", __func__);
+		akfs_params->mfv_ho.u.x = 0.0f;
+		akfs_params->mfv_ho.u.y = 0.0f;
+		akfs_params->mfv_ho.u.z = 0.0f;
+	} else {
+		ALOGD("AKM8975 HO (Offset Adjustment) parameters read are: (%f, %f, %f)",
+			akfs_params->mfv_ho.u.x, akfs_params->mfv_ho.u.y, akfs_params->mfv_ho.u.z);
+	}
 
 	// Initialize buffer
 	AKFS_InitBuffer(AKFS_HDATA_SIZE, akfs_params->mfv_hdata);
@@ -446,7 +462,7 @@ int akm8975_activate(struct smdk4x12_sensors_handlers *handlers)
 	// Initialize for AOC
 	AKFS_InitAOC(&akfs_params->m_aocv);
 	// Initialize magnetic status
-	akfs_params->mi_hstatus = 0;
+	akfs_params->mi_hstatus = SENSOR_STATUS_UNRELIABLE;
 
 	handlers->activated = 1;
 	pthread_mutex_unlock(&data->mutex);
@@ -478,18 +494,20 @@ int akm8975_deactivate(struct smdk4x12_sensors_handlers *handlers)
 
 	empty = 1;
 
-	for (i = 0; i < 3; i++) {
-		if (akfs_params->mfv_ho.v[i] != 0) {
-			empty = 0;
-			break;
-		}
+	if ((akfs_params->mfv_ho.u.x != 0.0f) || (akfs_params->mfv_ho.u.y != 0.0f) ||
+			(akfs_params->mfv_ho.u.z != 0.0f)) {
+		empty = 0;
 	}
 
 	if (!empty) {
 		// Write settings to a file
 		rc = AKFS_SaveParameters(akfs_params, AKFS_CONFIG_PATH);
-		if (rc != AKM_SUCCESS)
-			ALOGE("%s: Unable to write AKFS parameters", __func__);
+		if (rc != AKM_SUCCESS) {
+			ALOGE("%s: Unable to write AKFS HO parameters", __func__);
+		} else {
+			ALOGD("AKM8975 HO (Offset Adjustment) parameters written are: (%f, %f, %f)",
+				akfs_params->mfv_ho.u.x, akfs_params->mfv_ho.u.y, akfs_params->mfv_ho.u.z);
+		}
 	}
 
 	mode = AK8975_MODE_POWER_DOWN;
@@ -502,11 +520,11 @@ int akm8975_deactivate(struct smdk4x12_sensors_handlers *handlers)
 	return 0;
 }
 
-int akm8975_set_delay(struct smdk4x12_sensors_handlers *handlers, long int delay)
+int akm8975_set_delay(struct smdk4x12_sensors_handlers *handlers, int64_t delay)
 {
 	struct akm8975_data *data;
 
-	ALOGD("%s(%p, %ld)", __func__, handlers, delay);
+	ALOGD("%s(%p, %" PRId64 ")", __func__, handlers, delay);
 
 	if (handlers == NULL || handlers->data == NULL)
 		return -EINVAL;
@@ -547,8 +565,6 @@ int akm8975_get_data(struct smdk4x12_sensors_handlers *handlers,
 	event->sensor = handlers->handle;
 	event->type = handlers->handle;
 
-	event->magnetic.status = SENSOR_STATUS_ACCURACY_MEDIUM;
-
 	do {
 		rc = read(input_fd, &input_event, sizeof(input_event));
 		if (rc < (int) sizeof(input_event))
@@ -565,6 +581,9 @@ int akm8975_get_data(struct smdk4x12_sensors_handlers *handlers,
 				case REL_Z:
 					event->magnetic.z = akm8975_convert(input_event.value);
 					break;
+				case REL_MISC:
+					event->magnetic.status = input_event.value;
+					break;
 				default:
 					continue;
 			}
@@ -573,9 +592,6 @@ int akm8975_get_data(struct smdk4x12_sensors_handlers *handlers,
 				event->timestamp = input_timestamp(&input_event);
 		}
 	} while (input_event.type != EV_SYN);
-
-	if (data->orientation_sensor != NULL)
-		orientation_fill(data->orientation_sensor, NULL, &event->magnetic);
 
 	return 0;
 }
