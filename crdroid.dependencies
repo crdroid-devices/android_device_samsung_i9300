@@ -1,32 +1,22 @@
 [
     {
-        "remote": "github",
-        "repository": "crdroidandroid/android_device_samsung_smdk4412-common",
-        "target_path": "device/samsung/smdk4412-common",
-        "revision": "5.1.1"
+        "repository": "android_device_samsung_smdk4412-common",
+        "target_path": "device/samsung/smdk4412-common"
     },
     {
-        "remote": "github",
-        "repository": "crdroidandroid/android_kernel_samsung_smdk4412",
-        "target_path": "kernel/samsung/smdk4412",
-        "revision": "5.1.1"
+        "repository": "android_kernel_samsung_smdk4412",
+        "target_path": "kernel/samsung/smdk4412"
     },
     {
-        "remote": "github",
-        "repository": "crdroidandroid/android_packages_apps_SamsungServiceMode",
-        "target_path": "packages/apps/SamsungServiceMode",
-        "revision": "5.1.1"
+        "repository": "android_packages_apps_SamsungServiceMode",
+        "target_path": "packages/apps/SamsungServiceMode"
     },
     {
-        "remote": "github",
-        "repository": "crdroidandroid/android_hardware_samsung",
-        "target_path": "hardware/samsung",
-        "revision": "5.1.1"
+        "repository": "android_hardware_samsung",
+        "target_path": "hardware/samsung"
     },
     {
-        "remote": "github",
-        "repository": "crdroidandroid/proprietary_vendor_samsung",
-        "target_path": "vendor/samsung",
-        "revision": "5.1.1"
+        "repository": "proprietary_vendor_samsung",
+        "target_path": "vendor/samsung"
     }
 ]
